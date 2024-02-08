@@ -1,0 +1,113 @@
+// Online C++ compiler to run C++ program online
+#include <bits/stdc++.h>
+using namespace std;
+using ll =long long ;
+using Clock=chrono::steady_clock;
+class task{
+    public:
+        string message;
+        ll etime;
+        task(ll t, string s){
+            message=s;
+            etime=t;
+        }
+};
+struct cmp{
+  bool operator()(task* a,task* b){
+      ll x=a->etime;
+      ll y=b->etime;
+      if(x<=y){
+          return false;
+      }
+      return true;
+  }  
+};
+class scheduler{
+    public:
+      priority_queue<task*,vector<task*>,cmp> pq;
+      mutex m;
+      condition_variable cv;
+      scheduler(){
+          
+      }
+      void executetask(){
+         
+          unique_lock<mutex> lock(m);
+
+          while(1){
+              if(pq.empty()){
+                
+                  cv.wait(lock);
+              }
+              else{
+                
+                  task* t=pq.top();
+                  ll currtime=Clock::now().time_since_epoch().count();
+                  ll tasktime=t->etime;
+                  ll waittime=(tasktime-currtime)/1000000000; //in seconds.
+                  
+                  if(waittime<=0){
+                     
+                      cout<<t->message<<endl;
+                      pq.pop();
+                  }
+                  else{
+                   
+                      cout<<"waiting for "<<waittime<< " seconds" <<endl;
+                      cv.wait_for(lock,chrono::seconds(waittime));
+                      cout<<"waiting is over for"<<endl;
+                  }
+              }
+          }
+          //taking the lock 
+          
+      }
+      void pushtask(ll delay, string s){
+          
+          unique_lock<mutex> lock(m);
+          ll etime=Clock::now().time_since_epoch().count()+(delay*1000000000);
+          task* t=new task(etime,s);
+          cout<<"pushed task "<<s<<endl;
+          pq.push(t);
+          cv.notify_one();
+      }
+};
+void push(scheduler& s,ll x,string message){
+    s.pushtask(x,message);
+}
+void execute(scheduler& s){
+    
+        s.executetask();
+    
+}
+int main() {
+    scheduler s;
+    thread t1(push,ref(s),4,"task1");
+    
+    thread t4(execute,ref(s));
+    thread t2(push,ref(s),8,"task2");
+    thread t3(push,ref(s),2,"task3");
+    t1.join();
+      t2.join();
+      t3.join();
+    t4.join();
+    
+    return 0;
+}
+
+/*
+
+pushed task task1
+waiting for 3 seconds
+pushed task task2
+pushed task task3
+waiting is over for
+waiting for 1 seconds
+waiting is over for
+task3
+waiting for 2 seconds
+waiting is over for
+task1
+waiting for 4 seconds
+waiting is over for
+task2*/
